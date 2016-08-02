@@ -8,15 +8,15 @@ import (
 	"runtime"
 )
 
-type PCPContext struct {
+type PmapiContext struct {
 	context int
 }
 
-func finalizer(c *PCPContext) {
+func finalizer(c *PmapiContext) {
 	C.pmDestroyContext(C.int(c.context))
 }
 
-func PmNewContext(hostname string) (*PCPContext, error) {
+func PmNewContext(hostname string) (*PmapiContext, error) {
 	hostname_ptr := C.CString(hostname)
 	defer C.free(unsafe.Pointer(hostname_ptr))
 
@@ -25,7 +25,7 @@ func PmNewContext(hostname string) (*PCPContext, error) {
 		return nil, errors.New(PmErrStr(context_id))
 	}
 
-	context := &PCPContext{
+	context := &PmapiContext{
 		context: context_id,
 	}
 
@@ -34,7 +34,7 @@ func PmNewContext(hostname string) (*PCPContext, error) {
 	return context, nil
 }
 
-func (c *PCPContext) PmGetContextHostname() string {
+func (c *PmapiContext) PmGetContextHostname() string {
 	string_buffer := make([]C.char, C.MAXHOSTNAMELEN)
 	raw_char_ptr := (*C.char)(unsafe.Pointer(&string_buffer[0]))
 
@@ -52,6 +52,6 @@ func PmErrStr(error_no int) string {
 	return C.GoString(raw_char_ptr)
 }
 
-func (c *PCPContext) GetContextId() int {
+func (c *PmapiContext) GetContextId() int {
 	return c.context
 }
