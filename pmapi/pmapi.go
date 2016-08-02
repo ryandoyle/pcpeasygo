@@ -12,15 +12,24 @@ type PmapiContext struct {
 	context int
 }
 
+type PmContextType int
+
+const (
+	PmContextHost = PmContextType(int(C.PM_CONTEXT_HOST))
+	PmContextArchive = PmContextType(int(C.PM_CONTEXT_ARCHIVE))
+	PmContextLocal = PmContextType(int(C.PM_CONTEXT_LOCAL))
+	PmContextUndef = PmContextType(int(C.PM_CONTEXT_UNDEF))
+)
+
 func finalizer(c *PmapiContext) {
 	C.pmDestroyContext(C.int(c.context))
 }
 
-func PmNewContext(hostname string) (*PmapiContext, error) {
-	hostname_ptr := C.CString(hostname)
-	defer C.free(unsafe.Pointer(hostname_ptr))
+func PmNewContext(context_type PmContextType, host_or_archive string) (*PmapiContext, error) {
+	host_or_archive_ptr := C.CString(host_or_archive)
+	defer C.free(unsafe.Pointer(host_or_archive_ptr))
 
-	context_id := int(C.pmNewContext(C.PM_CONTEXT_HOST, hostname_ptr))
+	context_id := int(C.pmNewContext(C.int(context_type), host_or_archive_ptr))
 	if (context_id < 0) {
 		return nil, errors.New(PmErrStr(context_id))
 	}

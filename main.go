@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	context, err := pmapi.PmNewContext("localhost")
+	context, err := pmapi.PmNewContext(pmapi.PmContextHost, "localhost")
 	if err != nil {
 		panic(err)
 	}
