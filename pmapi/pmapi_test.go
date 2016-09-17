@@ -12,6 +12,20 @@ func TestPmapiContext_PmGetContextHostname(t *testing.T) {
 	assertEquals(t, hostname, "ryandesktop")
 }
 
+func TestPmapiContext_PmLookupNameForASingleName(t *testing.T) {
+	c, _ := PmNewContext(PmContextHost, "localhost")
+	pmids, _ := c.PmLookupName("sample.long.one")
+
+	assertEquals(t, pmids[0], PmID(121634826))
+}
+
+func TestPmapiContext_PmLookupNameForMultipleNames(t *testing.T) {
+	c, _ := PmNewContext(PmContextHost, "localhost")
+	pmids, _ := c.PmLookupName("sample.long.one", "sample.ulong.hundred",)
+
+	assertEquals(t, pmids[1], PmID(121634911))
+}
+
 func TestPmNewContext_withAnInvalidHostHasANilContext(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "not-a-host")
 

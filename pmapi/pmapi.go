@@ -13,6 +13,7 @@ type PmapiContext struct {
 }
 
 type PmContextType int
+type PmID uint
 
 const (
 	PmContextHost = PmContextType(int(C.PM_CONTEXT_HOST))
@@ -54,6 +55,39 @@ func (c *PmapiContext) PmGetContextHostname() (string, error) {
 	C.pmGetContextHostName_r(C.int(c.context), raw_char_ptr, C.MAXHOSTNAMELEN)
 
 	return C.GoString(raw_char_ptr), nil
+}
+
+func (c *PmapiContext) PmLookupName(names ...string) ([]PmID, error) {
+	context_err := c.pmUseContext()
+	if(context_err != nil) {
+		return nil, context_err
+	}
+
+	number_of_names := len(names)
+	c_pmids := make([]C.pmID, number_of_names)
+	c_names := make([]*C.char, number_of_names)
+
+	/* Build c_names as copies of the original names */
+	for i, name := range names {
+		name_ptr := C.CString(name)
+		c_names[i] = name_ptr
+		defer C.free(unsafe.Pointer(name_ptr))
+	}
+
+	/* Do the actual lookup */
+	err := int(C.pmLookupName(C.int(number_of_names), &c_names[0], &c_pmids[0]))
+	if(err < 0 ) {
+		return nil, newPmError(err)
+	}
+
+	/* Collect up the C.pmIDs into Go PmID's. Originally when returning the slice that was passed
+	into pmLookupName was resulting in bit length errors between Go's uint and C unsigned int */
+	pmids := make([]PmID, number_of_names)
+	for i, c_pmid := range c_pmids {
+		pmids[i] = PmID(c_pmid)
+	}
+
+	return pmids, nil
 }
 
 
