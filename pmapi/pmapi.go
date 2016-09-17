@@ -31,7 +31,7 @@ func PmNewContext(context_type PmContextType, host_or_archive string) (*PmapiCon
 
 	context_id := int(C.pmNewContext(C.int(context_type), host_or_archive_ptr))
 	if (context_id < 0) {
-		return nil, errors.New(PmErrStr(context_id))
+		return nil, newPmError(context_id)
 	}
 
 	context := &PmapiContext{
@@ -43,16 +43,33 @@ func PmNewContext(context_type PmContextType, host_or_archive string) (*PmapiCon
 	return context, nil
 }
 
-func (c *PmapiContext) PmGetContextHostname() string {
+func (c *PmapiContext) PmGetContextHostname() (string, error) {
+	err := c.pmUseContext()
+	if(err != nil) {
+		return "", err
+	}
 	string_buffer := make([]C.char, C.MAXHOSTNAMELEN)
 	raw_char_ptr := (*C.char)(unsafe.Pointer(&string_buffer[0]))
 
 	C.pmGetContextHostName_r(C.int(c.context), raw_char_ptr, C.MAXHOSTNAMELEN)
 
-	return C.GoString(raw_char_ptr)
+	return C.GoString(raw_char_ptr), nil
 }
 
-func PmErrStr(error_no int) string {
+
+func (c *PmapiContext) pmUseContext() error {
+	err := int(C.pmUseContext(C.int(c.context)))
+	if(err < 0) {
+		return newPmError(err)
+	}
+	return nil
+}
+
+func newPmError(err int) error {
+	return errors.New(pmErrStr(err))
+}
+
+func pmErrStr(error_no int) string {
 	string_buffer := make([]C.char, C.PM_MAXERRMSGLEN)
 	raw_char_ptr := (*C.char)(unsafe.Pointer(&string_buffer[0]))
 

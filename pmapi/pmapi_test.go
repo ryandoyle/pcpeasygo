@@ -7,8 +7,9 @@ import (
 
 func TestPmapiContext_PmGetContextHostname(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
+	hostname, _ := c.PmGetContextHostname()
 
-	assertEquals(t, c.PmGetContextHostname(), "ryanlap")
+	assertEquals(t, hostname, "ryandesktop")
 }
 
 func TestPmNewContext_withAnInvalidHostHasANilContext(t *testing.T) {
