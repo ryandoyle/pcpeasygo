@@ -19,6 +19,13 @@ func TestPmapiContext_PmLookupNameForASingleName(t *testing.T) {
 	assertEquals(t, pmids[0], PmID(121634826))
 }
 
+func TestPmapiContext_PmLookupNameReturnsAnErrorForUnknownNames(t *testing.T) {
+	c, _ := PmNewContext(PmContextHost, "localhost")
+	_, err := c.PmLookupName("not.a.name")
+
+	assertNotNil(t, err)
+}
+
 func TestPmapiContext_PmLookupNameForMultipleNames(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
 	pmids, _ := c.PmLookupName("sample.long.one", "sample.ulong.hundred",)
