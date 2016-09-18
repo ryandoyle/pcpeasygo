@@ -5,6 +5,9 @@ import (
 	"reflect"
 )
 
+var sampleDoubleMillion PmID = 121634844
+var sampleMilliseconds PmID = 121634819
+
 func TestPmapiContext_PmGetContextHostname(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
 	hostname, _ := c.PmGetContextHostname()
@@ -14,9 +17,9 @@ func TestPmapiContext_PmGetContextHostname(t *testing.T) {
 
 func TestPmapiContext_PmLookupNameForASingleName(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
-	pmids, _ := c.PmLookupName("sample.long.one")
+	pmids, _ := c.PmLookupName("sample.double.million")
 
-	assertEquals(t, pmids[0], PmID(121634826))
+	assertEquals(t, pmids[0], sampleDoubleMillion)
 }
 
 func TestPmapiContext_PmLookupNameReturnsAnErrorForUnknownNames(t *testing.T) {
@@ -31,6 +34,40 @@ func TestPmapiContext_PmLookupNameForMultipleNames(t *testing.T) {
 	pmids, _ := c.PmLookupName("sample.long.one", "sample.ulong.hundred",)
 
 	assertEquals(t, pmids[1], PmID(121634911))
+}
+
+func TestPmapiContext_PmLookupDesc_HasTheCorrectPmID(t *testing.T) {
+	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillion)
+
+	assertEquals(t, pmdesc.PmID, sampleDoubleMillion)
+}
+
+func TestPmapiContext_PmLookupDesc_HasTheCorrectType(t *testing.T) {
+	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillion)
+
+	assertEquals(t, pmdesc.Type, PmTypeDouble)
+}
+
+func TestPmapiContext_PmLookupDesc_HasTheCorrectInDom(t *testing.T) {
+	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillion)
+
+	assertEquals(t, pmdesc.InDom, PmInDomNull)
+}
+
+func TestPmapiContext_PmLookupDesc_HasTheCorrectSemantics(t *testing.T) {
+	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillion)
+
+	assertEquals(t, pmdesc.Sem, PmSemInstant)
+}
+
+func TestPmapiContext_PmLookupDesc_HasTheCorrectUnits(t *testing.T) {
+	pmdesc, _ := localContext().PmLookupDesc(sampleMilliseconds)
+	expected_units := PmUnits{
+		DimTime: 1,
+		ScaleTime: PmTimeMSec,
+	}
+
+	assertEquals(t, pmdesc.Units, expected_units)
 }
 
 func TestPmNewContext_withAnInvalidHostHasANilContext(t *testing.T) {
@@ -86,4 +123,9 @@ func isNil(object interface{}) bool {
 		return true
 	}
 	return reflect.ValueOf(object).IsNil()
+}
+
+func localContext() *PmapiContext {
+	c, _ := PmNewContext(PmContextHost, "localhost")
+	return c
 }

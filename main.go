@@ -10,5 +10,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("context id is %v, hostname is %v\n", context.GetContextId(), context.PmGetContextHostname())
+	metric, _ := context.PmLookupDesc(121634826)
+	host, _ := context.PmGetContextHostname()
+	fmt.Printf("context id is %v, hostname is %v, metric is %v\n", context.GetContextId(), host, metric)
 }

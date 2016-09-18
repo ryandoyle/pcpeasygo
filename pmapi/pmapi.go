@@ -1,6 +1,30 @@
 package pmapi
 // #cgo LDFLAGS: -lpcp
 // #include <pcp/pmapi.h>
+/*
+// cgo does not support packed pmUnit struct. Define some helper functions
+// to get the underlying data out of the struct
+int getPmUnitsDimSpace(pmUnits units) {
+	return units.dimSpace;
+}
+int getPmUnitsDimTime(pmUnits units) {
+	return units.dimTime;
+}
+int getPmUnitsDimCount(pmUnits units) {
+	return units.dimCount;
+}
+
+unsigned int getPmUnitsScaleSpace(pmUnits units) {
+	return units.scaleSpace;
+}
+unsigned int getPmUnitsScaleTime(pmUnits units) {
+	return units.scaleTime;
+}
+int getPmUnitsScaleCount(pmUnits units) {
+	return units.scaleCount;
+}
+
+*/
 import "C"
 import (
 	"unsafe"
@@ -12,14 +36,67 @@ type PmapiContext struct {
 	context int
 }
 
+type PmDesc struct {
+	PmID PmID
+	Type int
+	InDom PmInDom
+	Sem int
+	Units PmUnits
+}
+
+type PmUnits struct {
+	DimSpace int
+	DimTime int
+	DimCount int
+	ScaleSpace uint
+	ScaleTime uint
+	ScaleCount int
+}
+
 type PmContextType int
 type PmID uint
+type PmInDom uint
+
 
 const (
 	PmContextHost = PmContextType(int(C.PM_CONTEXT_HOST))
 	PmContextArchive = PmContextType(int(C.PM_CONTEXT_ARCHIVE))
 	PmContextLocal = PmContextType(int(C.PM_CONTEXT_LOCAL))
 	PmContextUndef = PmContextType(int(C.PM_CONTEXT_UNDEF))
+	PmInDomNull = PmInDom(C.PM_INDOM_NULL)
+
+	PmSpaceByte = uint(C.PM_SPACE_BYTE)
+	PmSpaceKByte = uint(C.PM_SPACE_KBYTE)
+	PmSpaceMByte = uint(C.PM_SPACE_MBYTE)
+	PmSpaceGByte = uint(C.PM_SPACE_GBYTE)
+	PmSpaceTByte = uint(C.PM_SPACE_TBYTE)
+	PmSpacePByte = uint(C.PM_SPACE_PBYTE)
+	PmSpaceEByte = uint(C.PM_SPACE_EBYTE)
+
+	PmTimeNSec = uint(C.PM_TIME_NSEC)
+	PmTimeUSec = uint(C.PM_TIME_USEC)
+	PmTimeMSec = uint(C.PM_TIME_MSEC)
+	PmTimeSec = uint(C.PM_TIME_SEC)
+	PmTimeMin = uint(C.PM_TIME_MIN)
+	PmTimeHour = uint(C.PM_TIME_HOUR)
+
+	PmTypeNoSupport = int(C.PM_TYPE_NOSUPPORT)
+	PmType32 = int(C.PM_TYPE_32)
+	PmTypeU32 = int(C.PM_TYPE_U32)
+	PmType64 = int(C.PM_TYPE_64)
+	PmTypeU64 = int(C.PM_TYPE_U64)
+	PmTypeFloat = int(C.PM_TYPE_FLOAT)
+	PmTypeDouble = int(C.PM_TYPE_DOUBLE)
+	PmTypeString = int(C.PM_TYPE_STRING)
+	PmTypeAggregate= int(C.PM_TYPE_AGGREGATE)
+	PmTypeAggregateStatic = int(C.PM_TYPE_AGGREGATE_STATIC)
+	PmTypeEvent = int(C.PM_TYPE_EVENT)
+	PmTypeHighResEvent = int(C.PM_TYPE_HIGHRES_EVENT)
+	PmTypeUnknown = int(C.PM_TYPE_UNKNOWN)
+
+	PmSemCounter = int(C.PM_SEM_COUNTER)
+	PmSemInstant = int(C.PM_SEM_INSTANT)
+	PmSemDiscrete = int(C.PM_SEM_DISCRETE)
 )
 
 func finalizer(c *PmapiContext) {
@@ -90,6 +167,34 @@ func (c *PmapiContext) PmLookupName(names ...string) ([]PmID, error) {
 	return pmids, nil
 }
 
+func (c *PmapiContext) PmLookupDesc(pmid PmID) (PmDesc, error) {
+	context_err := c.pmUseContext()
+	if(context_err != nil) {
+		return PmDesc{}, context_err
+	}
+
+	c_pmdesc := C.pmDesc{}
+
+	err := int(C.pmLookupDesc(C.pmID(pmid), &c_pmdesc))
+	if(err < 0) {
+		return PmDesc{}, newPmError(err)
+	}
+
+	return PmDesc{
+		PmID: PmID(c_pmdesc.pmid),
+		Type: int(c_pmdesc._type),
+		InDom: PmInDom(c_pmdesc.indom),
+		Sem: int(c_pmdesc.sem),
+		Units: PmUnits{
+			DimSpace: int(C.getPmUnitsDimSpace(c_pmdesc.units)),
+			DimTime: int(C.getPmUnitsDimTime(c_pmdesc.units)),
+			DimCount: int(C.getPmUnitsDimCount(c_pmdesc.units)),
+			ScaleSpace: uint(C.getPmUnitsScaleSpace(c_pmdesc.units)),
+			ScaleTime: uint(C.getPmUnitsScaleTime(c_pmdesc.units)),
+			ScaleCount: int(C.getPmUnitsScaleCount(c_pmdesc.units)),
+		}}, nil
+
+}
 
 func (c *PmapiContext) pmUseContext() error {
 	err := int(C.pmUseContext(C.int(c.context)))
