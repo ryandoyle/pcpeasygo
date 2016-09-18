@@ -196,6 +196,35 @@ func (c *PmapiContext) PmLookupDesc(pmid PmID) (PmDesc, error) {
 
 }
 
+func (c *PmapiContext) PmGetInDom(indom PmInDom) (map[int]string, error) {
+	context_err := c.pmUseContext()
+	if(context_err != nil) {
+		return nil, context_err
+	}
+
+	var c_instance_ids *C.int
+	var c_instance_names **C.char
+
+	err_or_number_of_instances := int(C.pmGetInDom(C.pmInDom(indom), &c_instance_ids, &c_instance_names))
+	if(err_or_number_of_instances < 0) {
+		return nil, newPmError(err_or_number_of_instances)
+	}
+	defer C.free(unsafe.Pointer(c_instance_ids))
+	defer C.free(unsafe.Pointer(c_instance_names))
+
+	/* Convert to a slice as we cannot do pointer arithmetic. As per
+	   https://groups.google.com/forum/#!topic/golang-nuts/sV_f0VkjZTA */
+	c_instance_ids_slice := (*[1 << 30]C.int)(unsafe.Pointer(c_instance_ids))
+	c_instance_names_slice := (*[1 << 30]*C.char)(unsafe.Pointer(c_instance_names))
+
+	indom_map := make(map[int]string)
+	for i := 0; i < err_or_number_of_instances; i++ {
+		indom_map[int(c_instance_ids_slice[i])] = C.GoString(c_instance_names_slice[i])
+	}
+
+	return indom_map, nil
+}
+
 func (c *PmapiContext) pmUseContext() error {
 	err := int(C.pmUseContext(C.int(c.context)))
 	if(err < 0) {

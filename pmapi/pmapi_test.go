@@ -5,8 +5,9 @@ import (
 	"reflect"
 )
 
-var sampleDoubleMillion PmID = 121634844
-var sampleMilliseconds PmID = 121634819
+var sampleDoubleMillionPmID PmID = 121634844
+var sampleMillisecondsPmID PmID = 121634819
+var sampleColourInDom PmInDom = 121634817
 
 func TestPmapiContext_PmGetContextHostname(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
@@ -19,7 +20,7 @@ func TestPmapiContext_PmLookupNameForASingleName(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
 	pmids, _ := c.PmLookupName("sample.double.million")
 
-	assertEquals(t, pmids[0], sampleDoubleMillion)
+	assertEquals(t, pmids[0], sampleDoubleMillionPmID)
 }
 
 func TestPmapiContext_PmLookupNameReturnsAnErrorForUnknownNames(t *testing.T) {
@@ -37,37 +38,57 @@ func TestPmapiContext_PmLookupNameForMultipleNames(t *testing.T) {
 }
 
 func TestPmapiContext_PmLookupDesc_HasTheCorrectPmID(t *testing.T) {
-	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillion)
+	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillionPmID)
 
-	assertEquals(t, pmdesc.PmID, sampleDoubleMillion)
+	assertEquals(t, pmdesc.PmID, sampleDoubleMillionPmID)
 }
 
 func TestPmapiContext_PmLookupDesc_HasTheCorrectType(t *testing.T) {
-	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillion)
+	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillionPmID)
 
 	assertEquals(t, pmdesc.Type, PmTypeDouble)
 }
 
 func TestPmapiContext_PmLookupDesc_HasTheCorrectInDom(t *testing.T) {
-	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillion)
+	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillionPmID)
 
 	assertEquals(t, pmdesc.InDom, PmInDomNull)
 }
 
 func TestPmapiContext_PmLookupDesc_HasTheCorrectSemantics(t *testing.T) {
-	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillion)
+	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillionPmID)
 
 	assertEquals(t, pmdesc.Sem, PmSemInstant)
 }
 
 func TestPmapiContext_PmLookupDesc_HasTheCorrectUnits(t *testing.T) {
-	pmdesc, _ := localContext().PmLookupDesc(sampleMilliseconds)
+	pmdesc, _ := localContext().PmLookupDesc(sampleMillisecondsPmID)
 	expected_units := PmUnits{
 		DimTime: 1,
 		ScaleTime: PmTimeMSec,
 	}
 
 	assertEquals(t, pmdesc.Units, expected_units)
+}
+
+func TestPmapiContext_PmLookupInDom_ReturnsTheInstanceNameMapping(t *testing.T) {
+	indom, _ := localContext().PmGetInDom(sampleColourInDom)
+
+	assertEquals(t, indom[0], "red")
+	assertEquals(t, indom[1], "green")
+	assertEquals(t, indom[2], "blue")
+}
+
+func TestPmapiContext_PmGetInDom_ReturnsANilErrorForValidInDoms(t *testing.T) {
+	_, err := localContext().PmGetInDom(sampleColourInDom)
+
+	assertNil(t, err)
+}
+
+func TestPmapiContext_PmGetInDom_ReturnsAnErrorForIncorrectInDoms(t *testing.T) {
+	_, err := localContext().PmGetInDom(PmInDom(123))
+
+	assertNotNil(t, err)
 }
 
 func TestPmNewContext_withAnInvalidHostHasANilContext(t *testing.T) {

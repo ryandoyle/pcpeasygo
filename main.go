@@ -10,7 +10,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	metric, _ := context.PmLookupDesc(121634826)
 	host, _ := context.PmGetContextHostname()
-	fmt.Printf("context id is %v, hostname is %v, metric is %v\n", context.GetContextId(), host, metric)
+	metric, _ := context.PmLookupName("sample.colour")
+	desc, _ := context.PmLookupDesc(metric[0])
+	indoms, _ := context.PmGetInDom(desc.InDom)
+
+	fmt.Printf("context id is %v, hostname is %v, metric is %v, pmdesc is %v, indoms: %v\n", context.GetContextId(), host, metric,
+		desc, indoms)
 }
