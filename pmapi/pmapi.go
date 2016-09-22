@@ -24,12 +24,57 @@ int getPmUnitsScaleCount(pmUnits units) {
 	return units.scaleCount;
 }
 
+pmValueSet* getPmValueSetFromPmResult(int index, pmResult *pm_result) {
+	return pm_result->vset[index];
+}
+
+pmValue getPmValueFromPmValueSet(int index, pmValueSet *pm_value_set) {
+	return pm_value_set->vlist[index];
+}
+
+__int32_t getInt32FromPmAtomValue(pmAtomValue atom) {
+	return atom.l;
+}
+
+__uint32_t getUInt32FromPmAtomValue(pmAtomValue atom) {
+	return atom.ul;
+}
+
+__int64_t getInt64FromPmAtomValue(pmAtomValue atom) {
+	return atom.ll;
+}
+
+__uint64_t getUInt64FromPmAtomValue(pmAtomValue atom) {
+	return atom.ull;
+}
+
+float getFloatFromPmAtomValue(pmAtomValue atom) {
+	return atom.f;
+}
+
+double getDoubleFromPmAtomValue(pmAtomValue atom) {
+	return atom.d;
+}
+
+char *getStringFromPmAtomValue(pmAtomValue atom) {
+	return atom.cp;
+}
+
+void freeStringFromPmAtomValue(pmAtomValue atom) {
+	free(atom.cp);
+}
+
+void freePmValueBlockFromPmAtomValue(pmAtomValue atom) {
+	free(atom.vbp);
+}
+
 */
 import "C"
 import (
 	"unsafe"
 	"errors"
 	"runtime"
+	"time"
 )
 
 type PmapiContext struct {
@@ -51,6 +96,34 @@ type PmUnits struct {
 	ScaleSpace uint
 	ScaleTime uint
 	ScaleCount int
+}
+
+type PmResult struct {
+	cPmResult *C.pmResult
+	vSet []*PmValueSet
+}
+
+type PmValueSet struct {
+	cVset    *C.pmValueSet
+	/* Hold reference to the underlying PmResult so it does not get GCed */
+	pmResult *PmResult
+	vList []*PmValue
+}
+
+type PmValue struct {
+	cPmValue C.pmValue
+	/* Hold reference to the underlying PmResult so it does not get GCed */
+	pmResult *PmResult
+}
+
+type PmAtomValue struct {
+	Int32 int32
+	UInt32 uint32
+	Int64 int64
+	UInt64 uint64
+	Float float32
+	Double float64
+	String string
 }
 
 type PmContextType int
@@ -97,10 +170,18 @@ const (
 	PmSemCounter = int(C.PM_SEM_COUNTER)
 	PmSemInstant = int(C.PM_SEM_INSTANT)
 	PmSemDiscrete = int(C.PM_SEM_DISCRETE)
+
+	PmValInsitu = int(C.PM_VAL_INSITU)
+	PmValDptr = int(C.PM_VAL_DPTR)
+	PmValSptr = int(C.PM_VAL_SPTR)
 )
 
 func finalizer(c *PmapiContext) {
 	C.pmDestroyContext(C.int(c.context))
+}
+
+func pmResultFinalizer(pm_result *PmResult) {
+	C.pmFreeResult(pm_result.cPmResult)
 }
 
 func PmNewContext(context_type PmContextType, host_or_archive string) (*PmapiContext, error) {
@@ -223,6 +304,108 @@ func (c *PmapiContext) PmGetInDom(indom PmInDom) (map[int]string, error) {
 	}
 
 	return indom_map, nil
+}
+
+func (c *PmapiContext) PmFetch(pmids ...PmID) (*PmResult, error) {
+	number_of_pmids := len(pmids)
+
+	var c_pm_result *C.pmResult
+	c_pmids := (*C.pmID)(unsafe.Pointer(&pmids[0]))
+
+	err := int(C.pmFetch(C.int(number_of_pmids), c_pmids, &c_pm_result))
+	if(err < 0) {
+		return &PmResult{}, newPmError(err)
+	}
+
+	result := &PmResult{cPmResult:c_pm_result}
+	runtime.SetFinalizer(result, pmResultFinalizer)
+
+	return result, nil
+}
+
+func PmExtractValue(value_format int, pm_type int, pm_value *PmValue) (PmAtomValue, error) {
+	var c_pm_atom_value C.pmAtomValue
+
+	err := int(C.pmExtractValue(C.int(value_format), &pm_value.cPmValue, C.int(pm_type), &c_pm_atom_value, C.int(pm_type)))
+	if(err < 0) {
+		return PmAtomValue{}, newPmError(err)
+	}
+
+	switch pm_type {
+	case PmType32:
+		return PmAtomValue{Int32:int32(C.getInt32FromPmAtomValue(c_pm_atom_value))}, nil
+	case PmTypeU32:
+		return PmAtomValue{UInt32:uint32(C.getUInt32FromPmAtomValue(c_pm_atom_value))}, nil
+	case PmType64:
+		return PmAtomValue{Int64:int64(C.getInt64FromPmAtomValue(c_pm_atom_value))}, nil
+	case PmTypeU64:
+		return PmAtomValue{UInt64:uint64(C.getUInt64FromPmAtomValue(c_pm_atom_value))}, nil
+	case PmTypeFloat:
+		return PmAtomValue{Float:float32(C.getFloatFromPmAtomValue(c_pm_atom_value))}, nil
+	case PmTypeDouble:
+		return PmAtomValue{Double:float64(C.getDoubleFromPmAtomValue(c_pm_atom_value))}, nil
+	case PmTypeString:
+		str := PmAtomValue{String:C.GoString(C.getStringFromPmAtomValue(c_pm_atom_value))}
+		C.freeStringFromPmAtomValue(c_pm_atom_value)
+		return str, nil
+	case PmTypeAggregate:
+	case PmTypeEvent:
+	case PmTypeHighResEvent:
+		C.freePmValueBlockFromPmAtomValue(c_pm_atom_value)
+		return PmAtomValue{}, errors.New("Unsupported type")
+	}
+	return PmAtomValue{}, errors.New("Unknown type")
+}
+
+func (pm_result *PmResult) Timestamp() time.Time {
+	return time.Unix(int64(pm_result.cPmResult.timestamp.tv_sec), int64(pm_result.cPmResult.timestamp.tv_usec) * 1000)
+}
+
+func (pm_result *PmResult) NumPmID() int {
+	return int(pm_result.cPmResult.numpmid)
+}
+
+func (pm_result *PmResult) VSet() []*PmValueSet {
+	/* Lazily cache the vSet */
+	if(pm_result.vSet == nil) {
+		vsets := make([]*PmValueSet, pm_result.NumPmID())
+		for i := 0; i < pm_result.NumPmID(); i++ {
+			vsets[i] = &PmValueSet{pmResult:pm_result, cVset:C.getPmValueSetFromPmResult(C.int(i), pm_result.cPmResult)}
+		}
+		pm_result.vSet = vsets
+	}
+	return pm_result.vSet
+}
+
+func (pm_value_set *PmValueSet) PmID() PmID {
+	return PmID(pm_value_set.cVset.pmid)
+}
+
+func (pm_value_set *PmValueSet) NumVal() int {
+	return int(pm_value_set.cVset.numval)
+}
+
+func (pm_value_set *PmValueSet) ValFmt() int {
+	return int(pm_value_set.cVset.valfmt)
+}
+
+func (pm_value_set *PmValueSet) Vlist() []*PmValue {
+	/* Lazily cache the vList */
+	if(pm_value_set.vList == nil) {
+		pm_values := make([]*PmValue, pm_value_set.NumVal())
+		for i := 0; i < pm_value_set.NumVal(); i++ {
+			pm_values[i] = &PmValue{
+				pmResult:pm_value_set.pmResult,
+				cPmValue:C.getPmValueFromPmValueSet(C.int(i), pm_value_set.cVset),
+			}
+		}
+		pm_value_set.vList = pm_values
+	}
+	return pm_value_set.vList
+}
+
+func (pm_value *PmValue) Inst() int {
+	return int(pm_value.cPmValue.inst)
 }
 
 func (c *PmapiContext) pmUseContext() error {

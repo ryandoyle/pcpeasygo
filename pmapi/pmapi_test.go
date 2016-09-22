@@ -3,11 +3,13 @@ package pmapi
 import (
 	"testing"
 	"reflect"
+	"time"
 )
 
 var sampleDoubleMillionPmID PmID = 121634844
 var sampleMillisecondsPmID PmID = 121634819
 var sampleColourInDom PmInDom = 121634817
+var sampleStringHulloPmID PmID = 121634847
 
 func TestPmapiContext_PmGetContextHostname(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
@@ -91,6 +93,72 @@ func TestPmapiContext_PmGetInDom_ReturnsAnErrorForIncorrectInDoms(t *testing.T) 
 	assertNotNil(t, err)
 }
 
+func TestPmapiContext_PmFetch_returnsAPmResultWithATimestamp(t *testing.T) {
+	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
+
+	assertWithinDuration(t, pm_result.Timestamp(), time.Now(), time.Second)
+}
+
+func TestPmapiContext_PmFetch_returnsAPmResultWithTheNumberOfPMIDs(t *testing.T) {
+	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
+
+	assertEquals(t, pm_result.NumPmID(), 1)
+}
+
+func TestPmapiContext_PmFetch_returnsAVSet_withAPmID(t *testing.T) {
+	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
+
+	assertEquals(t, pm_result.VSet()[0].PmID(), sampleDoubleMillionPmID)
+}
+
+func TestPmapiContext_PmFetch_returnsAVSet_withNumval(t *testing.T) {
+	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
+
+	assertEquals(t, pm_result.VSet()[0].NumVal(), 1)
+}
+
+func TestPmapiContext_PmFetch_returnsAVSet_withValFmt(t *testing.T) {
+	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
+
+	assertEquals(t, pm_result.VSet()[0].ValFmt(), PmValDptr)
+}
+
+func TestPmapiContext_PmFetch_returnsAVSet_withVlist_withAPmValue_withAnInst(t *testing.T) {
+	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
+
+	assertEquals(t, pm_result.VSet()[0].Vlist()[0].Inst(), -1)
+}
+
+func TestPmExtractValue_forADoubleValue(t *testing.T) {
+	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
+
+	value := pm_result.VSet()[0].Vlist()[0]
+
+	atom, _ := PmExtractValue(PmValDptr, PmTypeDouble, value)
+
+	assertEquals(t, atom.Double, 1000000.0)
+}
+
+func TestPmExtractValue_forAStringValue(t *testing.T) {
+	pm_result, _ := localContext().PmFetch(sampleStringHulloPmID)
+
+	value := pm_result.VSet()[0].Vlist()[0]
+
+	atom, _ := PmExtractValue(PmValDptr, PmTypeString, value)
+
+	assertEquals(t, atom.String, "hullo world!")
+}
+
+func TestPmExtractValue_returnsAnErrorWhenTryingToExtractTheWrongType(t *testing.T) {
+	pm_result, _ := localContext().PmFetch(sampleStringHulloPmID)
+
+	value := pm_result.VSet()[0].Vlist()[0]
+
+	_, err := PmExtractValue(PmValDptr, PmType64, value)
+
+	assertNotNil(t, err)
+}
+
 func TestPmNewContext_withAnInvalidHostHasANilContext(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "not-a-host")
 
@@ -124,6 +192,14 @@ func TestPmNewContext_supportsALocalContext(t *testing.T) {
 func assertEquals(t *testing.T, a interface{}, b interface{}) {
 	if(a != b) {
 		t.Errorf("expected %v, got %v", b, a)
+	}
+}
+
+func assertWithinDuration(t *testing.T, time1 time.Time, time2 time.Time, duration time.Duration) {
+	rounded1 := time1.Round(duration)
+	rounded2 := time2.Round(duration)
+	if(!rounded1.Equal(rounded2)) {
+		t.Errorf("Expected time: %v and time: %v to be within %v of each other", time1, time2, duration)
 	}
 }
 
