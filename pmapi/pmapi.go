@@ -307,6 +307,11 @@ func (c *PmapiContext) PmGetInDom(indom PmInDom) (map[int]string, error) {
 }
 
 func (c *PmapiContext) PmFetch(pmids ...PmID) (*PmResult, error) {
+	context_err := c.pmUseContext()
+	if(context_err != nil) {
+		return &PmResult{}, context_err
+	}
+
 	number_of_pmids := len(pmids)
 
 	var c_pm_result *C.pmResult
