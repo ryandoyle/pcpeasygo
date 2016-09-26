@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"github.com/ryandoyle/pcpeasygo/pmapi"
 	"runtime"
+	"time"
 )
 
 func main() {
 	doRun()
+	time.Sleep(time.Second)
 	runtime.GC()
-	runtime.GC()
+	time.Sleep(time.Second)
 	runtime.GC()
 }
 
@@ -26,10 +28,10 @@ func doRun() {
 
 	instances_and_values := make(map[string]int32)
 
-	vset := result.VSet()[0]
-	for _, pm_value := range vset.Vlist() {
-		val, _ := pmapi.PmExtractValue(vset.ValFmt(), desc.Type, pm_value)
-		instances_and_values[indoms[pm_value.Inst()]] = val.Int32
+	vset := result.VSet[0]
+	for _, pm_value := range vset.VList {
+		val, _ := pmapi.PmExtractValue(vset.ValFmt, desc.Type, pm_value)
+		instances_and_values[indoms[pm_value.Inst]] = val.Int32
 	}
 
 	fmt.Printf("context id is %v\nhostname is %v\nmetric is %v\npmdesc is %v\nindoms: %v\nvalues: %v\n",

@@ -28,8 +28,24 @@ pmValueSet* getPmValueSetFromPmResult(int index, pmResult *pm_result) {
 	return pm_result->vset[index];
 }
 
-pmValue getPmValueFromPmValueSet(int index, pmValueSet *pm_value_set) {
-	return pm_value_set->vlist[index];
+// See comment in PmFetch() for an explanation of why we do this
+pmValue getDuplicatedPmValueFromPmValueSet(int index, pmValueSet *pm_value_set) {
+	pmValue pm_value = pm_value_set->vlist[index];
+
+	if(pm_value_set->valfmt == PM_VAL_DPTR) {
+		pmValueBlock *orig_vblock = pm_value.value.pval;
+		pmValueBlock *new_vblock = (pmValueBlock*)malloc(orig_vblock->vlen);
+		memcpy(new_vblock, orig_vblock, orig_vblock->vlen);
+		pm_value.value.pval = new_vblock;
+	}
+
+	return pm_value;
+}
+
+void freePmValue(pmValue pm_value, int valfmt) {
+	if(valfmt == PM_VAL_DPTR) {
+		free(pm_value.value.pval);
+	}
 }
 
 __int32_t getInt32FromPmAtomValue(pmAtomValue atom) {
@@ -99,21 +115,22 @@ type PmUnits struct {
 }
 
 type PmResult struct {
-	cPmResult *C.pmResult
-	vSet []*PmValueSet
+	Timestamp time.Time
+	NumPmID	int
+	VSet []*PmValueSet
 }
 
 type PmValueSet struct {
-	cVset    *C.pmValueSet
-	/* Hold reference to the underlying PmResult so it does not get GCed */
-	pmResult *PmResult
-	vList []*PmValue
+	PmID	PmID
+	NumVal	int
+	ValFmt	int
+	VList	[]*PmValue
 }
 
 type PmValue struct {
+	Inst int
 	cPmValue C.pmValue
-	/* Hold reference to the underlying PmResult so it does not get GCed */
-	pmResult *PmResult
+	valfmt C.int
 }
 
 type PmAtomValue struct {
@@ -176,14 +193,6 @@ const (
 	PmValSptr = int(C.PM_VAL_SPTR)
 )
 
-func finalizer(c *PmapiContext) {
-	C.pmDestroyContext(C.int(c.context))
-}
-
-func pmResultFinalizer(pm_result *PmResult) {
-	C.pmFreeResult(pm_result.cPmResult)
-}
-
 func PmNewContext(context_type PmContextType, host_or_archive string) (*PmapiContext, error) {
 	host_or_archive_ptr := C.CString(host_or_archive)
 	defer C.free(unsafe.Pointer(host_or_archive_ptr))
@@ -197,7 +206,9 @@ func PmNewContext(context_type PmContextType, host_or_archive string) (*PmapiCon
 		context: context_id,
 	}
 
-	runtime.SetFinalizer(context, finalizer)
+	runtime.SetFinalizer(context, func(c *PmapiContext) {
+		C.pmDestroyContext(C.int(c.context))
+	})
 
 	return context, nil
 }
@@ -319,13 +330,67 @@ func (c *PmapiContext) PmFetch(pmids ...PmID) (*PmResult, error) {
 
 	err := int(C.pmFetch(C.int(number_of_pmids), c_pmids, &c_pm_result))
 	if(err < 0) {
-		return &PmResult{}, newPmError(err)
+		return nil, newPmError(err)
+	}
+	/*
+	Its safe to free the *pmResult here as we copy any result data with
+	C.getDuplicatedPmValueFromPmValueSet. Originally PmValue's had a reference
+	to the parent PmResult so the underlying *pmResult would not be free'ed
+	until all references to the PmResult were gone. The only problem is that Go
+	doesn't grantee finalizers running on objects that have cyclic references.
+
+	It's a bit of extra copying of memory but its the only way to do it as far
+	as I know without having to explicitly free the *pmResult (which is not safe
+	if you have a reference to a PmValue as it's *pval will have already been freed)
+	*/
+	defer C.pmFreeResult(c_pm_result)
+
+	return &PmResult{
+		NumPmID:int(c_pm_result.numpmid),
+		Timestamp:time.Unix(int64(c_pm_result.timestamp.tv_sec), int64(c_pm_result.timestamp.tv_usec) * 1000),
+		VSet:vsetFromPmResult(c_pm_result),
+	}, nil
+}
+
+func vsetFromPmResult(c_pm_result *C.pmResult) []*PmValueSet {
+	number_of_pmids_from_pmresult := int(c_pm_result.numpmid)
+	vset := make([]*PmValueSet, number_of_pmids_from_pmresult)
+
+	for i := 0; i < number_of_pmids_from_pmresult; i++ {
+		c_vset := C.getPmValueSetFromPmResult(C.int(i), c_pm_result)
+		vset[i] = &PmValueSet{
+			PmID:PmID(c_vset.pmid),
+			NumVal:int(c_vset.numval),
+			ValFmt:int(c_vset.valfmt),
+			VList: vlistFromPmValueSet(c_vset),
+		}
+	}
+	return vset
+}
+
+func vlistFromPmValueSet(c_vset *C.pmValueSet) []*PmValue {
+	number_of_pm_values := int(c_vset.numval)
+	vlist := make([]*PmValue, number_of_pm_values)
+
+	for i := 0; i < number_of_pm_values; i++ {
+		vlist[i] = newPmValue(i, c_vset)
 	}
 
-	result := &PmResult{cPmResult:c_pm_result}
-	runtime.SetFinalizer(result, pmResultFinalizer)
+	return vlist
+}
 
-	return result, nil
+func newPmValue(index int, c_vset *C.pmValueSet) *PmValue {
+	/* See comment in PmFetch() for an explanation */
+	c_pm_value := C.getDuplicatedPmValueFromPmValueSet(C.int(index), c_vset)
+	pm_value := &PmValue{
+		Inst:int(c_pm_value.inst),
+		cPmValue:c_pm_value,
+		valfmt:c_vset.valfmt,
+	}
+	runtime.SetFinalizer(pm_value, func(pm_value *PmValue){
+		C.freePmValue(pm_value.cPmValue, pm_value.valfmt)
+	})
+	return pm_value
 }
 
 func PmExtractValue(value_format int, pm_type int, pm_value *PmValue) (PmAtomValue, error) {
@@ -360,57 +425,6 @@ func PmExtractValue(value_format int, pm_type int, pm_value *PmValue) (PmAtomVal
 		return PmAtomValue{}, errors.New("Unsupported type")
 	}
 	return PmAtomValue{}, errors.New("Unknown type")
-}
-
-func (pm_result *PmResult) Timestamp() time.Time {
-	return time.Unix(int64(pm_result.cPmResult.timestamp.tv_sec), int64(pm_result.cPmResult.timestamp.tv_usec) * 1000)
-}
-
-func (pm_result *PmResult) NumPmID() int {
-	return int(pm_result.cPmResult.numpmid)
-}
-
-func (pm_result *PmResult) VSet() []*PmValueSet {
-	/* Lazily cache the vSet */
-	if(pm_result.vSet == nil) {
-		vsets := make([]*PmValueSet, pm_result.NumPmID())
-		for i := 0; i < pm_result.NumPmID(); i++ {
-			vsets[i] = &PmValueSet{pmResult:pm_result, cVset:C.getPmValueSetFromPmResult(C.int(i), pm_result.cPmResult)}
-		}
-		pm_result.vSet = vsets
-	}
-	return pm_result.vSet
-}
-
-func (pm_value_set *PmValueSet) PmID() PmID {
-	return PmID(pm_value_set.cVset.pmid)
-}
-
-func (pm_value_set *PmValueSet) NumVal() int {
-	return int(pm_value_set.cVset.numval)
-}
-
-func (pm_value_set *PmValueSet) ValFmt() int {
-	return int(pm_value_set.cVset.valfmt)
-}
-
-func (pm_value_set *PmValueSet) Vlist() []*PmValue {
-	/* Lazily cache the vList */
-	if(pm_value_set.vList == nil) {
-		pm_values := make([]*PmValue, pm_value_set.NumVal())
-		for i := 0; i < pm_value_set.NumVal(); i++ {
-			pm_values[i] = &PmValue{
-				pmResult:pm_value_set.pmResult,
-				cPmValue:C.getPmValueFromPmValueSet(C.int(i), pm_value_set.cVset),
-			}
-		}
-		pm_value_set.vList = pm_values
-	}
-	return pm_value_set.vList
-}
-
-func (pm_value *PmValue) Inst() int {
-	return int(pm_value.cPmValue.inst)
 }
 
 func (c *PmapiContext) pmUseContext() error {

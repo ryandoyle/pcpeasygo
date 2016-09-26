@@ -96,43 +96,43 @@ func TestPmapiContext_PmGetInDom_ReturnsAnErrorForIncorrectInDoms(t *testing.T) 
 func TestPmapiContext_PmFetch_returnsAPmResultWithATimestamp(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	assertWithinDuration(t, pm_result.Timestamp(), time.Now(), time.Second)
+	assertWithinDuration(t, pm_result.Timestamp, time.Now(), time.Second)
 }
 
 func TestPmapiContext_PmFetch_returnsAPmResultWithTheNumberOfPMIDs(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	assertEquals(t, pm_result.NumPmID(), 1)
+	assertEquals(t, pm_result.NumPmID, 1)
 }
 
 func TestPmapiContext_PmFetch_returnsAVSet_withAPmID(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	assertEquals(t, pm_result.VSet()[0].PmID(), sampleDoubleMillionPmID)
+	assertEquals(t, pm_result.VSet[0].PmID, sampleDoubleMillionPmID)
 }
 
 func TestPmapiContext_PmFetch_returnsAVSet_withNumval(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	assertEquals(t, pm_result.VSet()[0].NumVal(), 1)
+	assertEquals(t, pm_result.VSet[0].NumVal, 1)
 }
 
 func TestPmapiContext_PmFetch_returnsAVSet_withValFmt(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	assertEquals(t, pm_result.VSet()[0].ValFmt(), PmValDptr)
+	assertEquals(t, pm_result.VSet[0].ValFmt, PmValDptr)
 }
 
 func TestPmapiContext_PmFetch_returnsAVSet_withVlist_withAPmValue_withAnInst(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	assertEquals(t, pm_result.VSet()[0].Vlist()[0].Inst(), -1)
+	assertEquals(t, pm_result.VSet[0].VList[0].Inst, -1)
 }
 
 func TestPmExtractValue_forADoubleValue(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	value := pm_result.VSet()[0].Vlist()[0]
+	value := pm_result.VSet[0].VList[0]
 
 	atom, _ := PmExtractValue(PmValDptr, PmTypeDouble, value)
 
@@ -142,7 +142,7 @@ func TestPmExtractValue_forADoubleValue(t *testing.T) {
 func TestPmExtractValue_forAStringValue(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleStringHulloPmID)
 
-	value := pm_result.VSet()[0].Vlist()[0]
+	value := pm_result.VSet[0].VList[0]
 
 	atom, _ := PmExtractValue(PmValDptr, PmTypeString, value)
 
@@ -152,7 +152,7 @@ func TestPmExtractValue_forAStringValue(t *testing.T) {
 func TestPmExtractValue_returnsAnErrorWhenTryingToExtractTheWrongType(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleStringHulloPmID)
 
-	value := pm_result.VSet()[0].Vlist()[0]
+	value := pm_result.VSet[0].VList[0]
 
 	_, err := PmExtractValue(PmValDptr, PmType64, value)
 
