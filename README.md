@@ -1,7 +1,7 @@
 > Work-in-progress Go bindings for [Performance Co-Pilot](http://pcp.io)
 
 ## Example
-See `main.go` in the project root.
+See `examples/main.go` in the project root.
 
 ## License
 This project is licensed under the MIT license
