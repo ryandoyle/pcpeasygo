@@ -174,6 +174,7 @@ const (
 	PmContextLocal = PmContextType(int(C.PM_CONTEXT_LOCAL))
 	PmContextUndef = PmContextType(int(C.PM_CONTEXT_UNDEF))
 	PmInDomNull = PmInDom(C.PM_INDOM_NULL)
+	PmInNull = int(C.PM_IN_NULL)
 
 	PmSpaceByte = uint(C.PM_SPACE_BYTE)
 	PmSpaceKByte = uint(C.PM_SPACE_KBYTE)
