@@ -391,6 +391,9 @@ func vsetFromPmResult(c_pm_result *C.pmResult) []*PmValueSet {
 
 func vlistFromPmValueSet(c_vset *C.pmValueSet) []*PmValue {
 	number_of_pm_values := int(c_vset.numval)
+	if(number_of_pm_values <= 0) {
+		return []*PmValue{}
+	}
 	vlist := make([]*PmValue, number_of_pm_values)
 
 	for i := 0; i < number_of_pm_values; i++ {
