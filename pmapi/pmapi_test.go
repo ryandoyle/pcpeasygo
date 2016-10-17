@@ -22,8 +22,8 @@ package pmapi
 
 import (
 	"testing"
-	"reflect"
 	"time"
+	"github.com/stretchr/testify/assert"
 )
 
 var sampleDoubleMillionPmID PmID = 121634844
@@ -35,52 +35,52 @@ func TestPmapiContext_PmGetContextHostname(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
 	hostname, _ := c.PmGetContextHostname()
 
-	assertEquals(t, hostname, "ryandesktop")
+	assert.Equal(t, "ryandesktop", hostname)
 }
 
 func TestPmapiContext_PmLookupNameForASingleName(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
 	pmids, _ := c.PmLookupName("sample.double.million")
 
-	assertEquals(t, pmids[0], sampleDoubleMillionPmID)
+	assert.Equal(t, sampleDoubleMillionPmID, pmids[0])
 }
 
 func TestPmapiContext_PmLookupNameReturnsAnErrorForUnknownNames(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
 	_, err := c.PmLookupName("not.a.name")
 
-	assertNotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestPmapiContext_PmLookupNameForMultipleNames(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
 	pmids, _ := c.PmLookupName("sample.long.one", "sample.ulong.hundred",)
 
-	assertEquals(t, pmids[1], PmID(121634911))
+	assert.Equal(t, PmID(121634911), pmids[1])
 }
 
 func TestPmapiContext_PmLookupDesc_HasTheCorrectPmID(t *testing.T) {
 	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillionPmID)
 
-	assertEquals(t, pmdesc.PmID, sampleDoubleMillionPmID)
+	assert.Equal(t, sampleDoubleMillionPmID, pmdesc.PmID)
 }
 
 func TestPmapiContext_PmLookupDesc_HasTheCorrectType(t *testing.T) {
 	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillionPmID)
 
-	assertEquals(t, pmdesc.Type, PmTypeDouble)
+	assert.Equal(t, PmTypeDouble, pmdesc.Type)
 }
 
 func TestPmapiContext_PmLookupDesc_HasTheCorrectInDom(t *testing.T) {
 	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillionPmID)
 
-	assertEquals(t, pmdesc.InDom, PmInDomNull)
+	assert.Equal(t, PmInDomNull, pmdesc.InDom)
 }
 
 func TestPmapiContext_PmLookupDesc_HasTheCorrectSemantics(t *testing.T) {
 	pmdesc, _ := localContext().PmLookupDesc(sampleDoubleMillionPmID)
 
-	assertEquals(t, pmdesc.Sem, PmSemInstant)
+	assert.Equal(t, PmSemInstant, pmdesc.Sem)
 }
 
 func TestPmapiContext_PmLookupDesc_HasTheCorrectUnits(t *testing.T) {
@@ -90,27 +90,27 @@ func TestPmapiContext_PmLookupDesc_HasTheCorrectUnits(t *testing.T) {
 		ScaleTime: PmTimeMSec,
 	}
 
-	assertEquals(t, pmdesc.Units, expected_units)
+	assert.Equal(t, expected_units, pmdesc.Units)
 }
 
 func TestPmapiContext_PmLookupInDom_ReturnsTheInstanceNameMapping(t *testing.T) {
 	indom, _ := localContext().PmGetInDom(sampleColourInDom)
 
-	assertEquals(t, indom[0], "red")
-	assertEquals(t, indom[1], "green")
-	assertEquals(t, indom[2], "blue")
+	assert.Equal(t, "red", indom[0])
+	assert.Equal(t, "green", indom[1])
+	assert.Equal(t, "blue", indom[2])
 }
 
 func TestPmapiContext_PmGetInDom_ReturnsANilErrorForValidInDoms(t *testing.T) {
 	_, err := localContext().PmGetInDom(sampleColourInDom)
 
-	assertNil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestPmapiContext_PmGetInDom_ReturnsAnErrorForIncorrectInDoms(t *testing.T) {
 	_, err := localContext().PmGetInDom(PmInDom(123))
 
-	assertNotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestPmapiContext_PmFetch_returnsAPmResultWithATimestamp(t *testing.T) {
@@ -122,31 +122,31 @@ func TestPmapiContext_PmFetch_returnsAPmResultWithATimestamp(t *testing.T) {
 func TestPmapiContext_PmFetch_returnsAPmResultWithTheNumberOfPMIDs(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	assertEquals(t, pm_result.NumPmID, 1)
+	assert.Equal(t, 1, pm_result.NumPmID)
 }
 
 func TestPmapiContext_PmFetch_returnsAVSet_withAPmID(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	assertEquals(t, pm_result.VSet[0].PmID, sampleDoubleMillionPmID)
+	assert.Equal(t, sampleDoubleMillionPmID, pm_result.VSet[0].PmID)
 }
 
 func TestPmapiContext_PmFetch_returnsAVSet_withNumval(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	assertEquals(t, pm_result.VSet[0].NumVal, 1)
+	assert.Equal(t, 1, pm_result.VSet[0].NumVal)
 }
 
 func TestPmapiContext_PmFetch_returnsAVSet_withValFmt(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	assertEquals(t, pm_result.VSet[0].ValFmt, PmValDptr)
+	assert.Equal(t, PmValDptr, pm_result.VSet[0].ValFmt)
 }
 
 func TestPmapiContext_PmFetch_returnsAVSet_withVlist_withAPmValue_withAnInst(t *testing.T) {
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
-	assertEquals(t, pm_result.VSet[0].VList[0].Inst, -1)
+	assert.Equal(t, -1, pm_result.VSet[0].VList[0].Inst)
 }
 
 func TestPmExtractValue_forADoubleValue(t *testing.T) {
@@ -156,7 +156,7 @@ func TestPmExtractValue_forADoubleValue(t *testing.T) {
 
 	atom, _ := PmExtractValue(PmValDptr, PmTypeDouble, value)
 
-	assertEquals(t, atom.Double, 1000000.0)
+	assert.Equal(t, 1000000.0, atom.Double)
 }
 
 func TestPmExtractValue_forAStringValue(t *testing.T) {
@@ -166,7 +166,7 @@ func TestPmExtractValue_forAStringValue(t *testing.T) {
 
 	atom, _ := PmExtractValue(PmValDptr, PmTypeString, value)
 
-	assertEquals(t, atom.String, "hullo world!")
+	assert.Equal(t, "hullo world!", atom.String)
 }
 
 func TestPmExtractValue_returnsAnErrorWhenTryingToExtractTheWrongType(t *testing.T) {
@@ -176,43 +176,37 @@ func TestPmExtractValue_returnsAnErrorWhenTryingToExtractTheWrongType(t *testing
 
 	_, err := PmExtractValue(PmValDptr, PmType64, value)
 
-	assertNotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestPmNewContext_withAnInvalidHostHasANilContext(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "not-a-host")
 
-	assertNil(t, c)
+	assert.Nil(t, c)
 }
 
 func TestPmNewContext_withAnInvalidHostHasAnError(t *testing.T) {
 	_, err := PmNewContext(PmContextHost, "not-a-host")
 
-	assertNotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestPmNewContext_hasAValidContext(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
 
-	assertNotNil(t, c)
+	assert.NotNil(t, c)
 }
 
 func TestPmNewContext_hasANilError(t *testing.T) {
 	_, err := PmNewContext(PmContextHost, "localhost")
 
-	assertNil(t, err)
+	assert.NoError(t, err)
 }
 
 func TestPmNewContext_supportsALocalContext(t *testing.T) {
 	c, _ := PmNewContext(PmContextLocal, "")
 
-	assertNotNil(t, c)
-}
-
-func assertEquals(t *testing.T, a interface{}, b interface{}) {
-	if(a != b) {
-		t.Errorf("expected %v, got %v", b, a)
-	}
+	assert.NotNil(t, c)
 }
 
 func assertWithinDuration(t *testing.T, time1 time.Time, time2 time.Time, duration time.Duration) {
@@ -221,25 +215,6 @@ func assertWithinDuration(t *testing.T, time1 time.Time, time2 time.Time, durati
 	if(!rounded1.Equal(rounded2)) {
 		t.Errorf("Expected time: %v and time: %v to be within %v of each other", time1, time2, duration)
 	}
-}
-
-func assertNil(t *testing.T, a interface{}) {
-	if ! isNil(a) {
-		t.Errorf("expected nil but got %v", a)
-	}
-}
-
-func assertNotNil(t *testing.T, a interface{}) {
-	if isNil(a) {
-		t.Errorf("expected not nil but got %v", a)
-	}
-}
-
-func isNil(object interface{}) bool {
-	if object == nil {
-		return true
-	}
-	return reflect.ValueOf(object).IsNil()
 }
 
 func localContext() *PmapiContext {
