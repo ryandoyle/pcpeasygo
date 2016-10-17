@@ -27,12 +27,11 @@ import (
 	"errors"
 )
 
-var pm_value = &pmapi.PmValue{}
-
 func Test_ToUntypedMetric_forInt32(t *testing.T) {
 	mock_pmapi := &MockPMAPI{}
 	adapter := pmValueAdapterImpl{pmapi:mock_pmapi}
 	pm_atom_value := pmapi.PmAtomValue{Int32:123}
+	pm_value := &pmapi.PmValue{}
 
 	mock_pmapi.On("PmExtractValue", pmapi.PmValDptr, pmapi.PmType32, pm_value).Return(pm_atom_value, nil)
 
@@ -45,6 +44,7 @@ func Test_ToUntypedMetric_forUint32(t *testing.T) {
 	mock_pmapi := &MockPMAPI{}
 	adapter := pmValueAdapterImpl{pmapi:mock_pmapi}
 	pm_atom_value := pmapi.PmAtomValue{UInt32:123}
+	pm_value := &pmapi.PmValue{}
 
 	mock_pmapi.On("PmExtractValue", pmapi.PmValDptr, pmapi.PmTypeU32, pm_value).Return(pm_atom_value, nil)
 
@@ -57,6 +57,7 @@ func Test_ToUntypedMetric_forInt64(t *testing.T) {
 	mock_pmapi := &MockPMAPI{}
 	adapter := pmValueAdapterImpl{pmapi:mock_pmapi}
 	pm_atom_value := pmapi.PmAtomValue{Int64:123}
+	pm_value := &pmapi.PmValue{}
 
 	mock_pmapi.On("PmExtractValue", pmapi.PmValDptr, pmapi.PmType64, pm_value).Return(pm_atom_value, nil)
 
@@ -69,6 +70,7 @@ func Test_ToUntypedMetric_forUint64(t *testing.T) {
 	mock_pmapi := &MockPMAPI{}
 	adapter := pmValueAdapterImpl{pmapi:mock_pmapi}
 	pm_atom_value := pmapi.PmAtomValue{UInt64:123}
+	pm_value := &pmapi.PmValue{}
 
 	mock_pmapi.On("PmExtractValue", pmapi.PmValDptr, pmapi.PmTypeU64, pm_value).Return(pm_atom_value, nil)
 
@@ -81,6 +83,7 @@ func Test_ToUntypedMetric_forFloat(t *testing.T) {
 	mock_pmapi := &MockPMAPI{}
 	adapter := pmValueAdapterImpl{pmapi:mock_pmapi}
 	pm_atom_value := pmapi.PmAtomValue{Float:123.456}
+	pm_value := &pmapi.PmValue{}
 
 	mock_pmapi.On("PmExtractValue", pmapi.PmValDptr, pmapi.PmTypeFloat, pm_value).Return(pm_atom_value, nil)
 
@@ -93,6 +96,7 @@ func Test_ToUntypedMetric_forDouble(t *testing.T) {
 	mock_pmapi := &MockPMAPI{}
 	adapter := pmValueAdapterImpl{pmapi:mock_pmapi}
 	pm_atom_value := pmapi.PmAtomValue{Double:123.456}
+	pm_value := &pmapi.PmValue{}
 
 	mock_pmapi.On("PmExtractValue", pmapi.PmValDptr, pmapi.PmTypeDouble, pm_value).Return(pm_atom_value, nil)
 
@@ -105,6 +109,7 @@ func Test_ToUntypedMetric_forString(t *testing.T) {
 	mock_pmapi := &MockPMAPI{}
 	adapter := pmValueAdapterImpl{pmapi:mock_pmapi}
 	pm_atom_value := pmapi.PmAtomValue{String:"test"}
+	pm_value := &pmapi.PmValue{}
 
 	mock_pmapi.On("PmExtractValue", pmapi.PmValDptr, pmapi.PmTypeString, pm_value).Return(pm_atom_value, nil)
 
@@ -116,7 +121,7 @@ func Test_ToUntypedMetric_forString(t *testing.T) {
 func Test_ToUntypedMetric_returnsAnErrorIfPmExtractValueReturnsAnError(t *testing.T) {
 	mock_pmapi := &MockPMAPI{}
 	adapter := pmValueAdapterImpl{pmapi:mock_pmapi}
-
+	pm_value := &pmapi.PmValue{}
 	err := errors.New("error")
 
 	mock_pmapi.On("PmExtractValue", pmapi.PmValDptr, pmapi.PmTypeString, pm_value).Return(nil, err)

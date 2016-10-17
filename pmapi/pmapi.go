@@ -118,6 +118,7 @@ type PMAPI interface {
 	PmFetch(pmids ...PmID) (*PmResult, error)
 	PmLookupDesc(pmid PmID) (PmDesc, error)
 	PmExtractValue(value_format int, pm_type int, pm_value *PmValue) (PmAtomValue, error)
+	PmGetInDom(indom PmInDom) (map[int]string, error)
 }
 
 type PmapiContext struct {

@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"github.com/ryandoyle/pcpeasygo/pmapi"
 	"errors"
+	"fmt"
 )
 
 type Metric struct {
@@ -97,18 +98,9 @@ func (a *agent) buildMetricFromPmValueSet(vset *pmapi.PmValueSet, pmid_names map
 	if(err != nil) {
 		return Metric{}, err
 	}
-	metric_info := a.pmDescAdapter.toMetricInfo(metric_desc)
 	metric_name := pmid_names[metric_desc.PmID]
-
-	if(metric_desc.InDom == pmapi.PmInDomNull) {
-		return a.metricValueForNoIndom(vset, metric_info, metric_name, metric_desc.Type)
-	} else {
-		return Metric{}, errors.New("Instances not supported yet")
-	}
-}
-
-func (a *agent) metricValueForNoIndom(vset *pmapi.PmValueSet, metric_info metricInfo, metric_name string, metric_type int) (Metric, error) {
-	metric_values, err := a.buildMetricValues(vset, metric_type)
+	metric_info := a.pmDescAdapter.toMetricInfo(metric_desc)
+	metric_values, err := a.buildMetricValues(vset, metric_desc)
 	if(err != nil) {
 		return Metric{}, err
 	}
@@ -121,9 +113,21 @@ func (a *agent) metricValueForNoIndom(vset *pmapi.PmValueSet, metric_info metric
 	}, nil
 }
 
-func (a *agent) buildMetricValues(vset *pmapi.PmValueSet, metric_type int) ([]MetricValue, error) {
-	value, err := a.pmValueAdapter.toUntypedMetric(vset.ValFmt, metric_type, vset.VList[0])
-	if(err != nil) {
+func (a *agent) buildMetricValues(vset *pmapi.PmValueSet, metric_desc pmapi.PmDesc) ([]MetricValue, error) {
+	if(vset.NumVal <= 0) {
+		return nil, errors.New(fmt.Sprintf("metric \"%v\" contains no values or error \"%v\"", vset.PmID, vset.NumVal))
+	}
+	if(metric_desc.InDom == pmapi.PmInDomNull) {
+		return a.buildMetricValuesForNullInstance(vset, metric_desc)
+	} else {
+		return a.buildMetricValuesForInstances(vset, metric_desc)
+	}
+
+}
+
+func (a *agent) buildMetricValuesForNullInstance(vset *pmapi.PmValueSet, metric_desc pmapi.PmDesc) ([]MetricValue, error) {
+	value, err := a.pmValueAdapter.toUntypedMetric(vset.ValFmt, metric_desc.Type, vset.VList[0])
+	if (err != nil) {
 		return nil, err
 	}
 
@@ -131,4 +135,25 @@ func (a *agent) buildMetricValues(vset *pmapi.PmValueSet, metric_type int) ([]Me
 		Instance:"",
 		Value:value,
 	}}, nil
+}
+
+func (a *agent) buildMetricValuesForInstances(vset *pmapi.PmValueSet, metric_desc pmapi.PmDesc) ([]MetricValue, error) {
+	ids_to_instance_names, err := a.pmapi.PmGetInDom(metric_desc.InDom)
+	if(err != nil) {
+		return nil, err
+	}
+
+	metric_values := make([]MetricValue, len(vset.VList))
+	for i, pm_value := range vset.VList {
+		value, err := a.pmValueAdapter.toUntypedMetric(vset.ValFmt, metric_desc.Type, pm_value)
+		if(err != nil) {
+			return nil, err
+		}
+		instance := ids_to_instance_names[pm_value.Inst]
+		if(instance == "") {
+			return nil, errors.New(fmt.Sprintf("Instance name for ID %v not found", pm_value.Inst))
+		}
+		metric_values[i] = MetricValue{Instance:instance, Value:value}
+	}
+	return metric_values, nil
 }

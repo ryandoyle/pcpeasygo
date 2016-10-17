@@ -28,7 +28,9 @@ import (
 func main() {
 	a, _ := pcpeasy.NewAgent("localhost")
 
-	metrics, _ := a.Metrics("sample.wrap.ulong")
+	metrics_with_no_instances, _ := a.Metrics("sample.wrap.ulong")
+	metrics_with_instances, _ := a.Metrics("network.interface.total.bytes")
 
-	fmt.Printf("metrics: %+v\n", metrics)
+	fmt.Printf("metrics(no instance): %+v\n", metrics_with_no_instances)
+	fmt.Printf("metrics(with instance): %+v\n", metrics_with_instances)
 }

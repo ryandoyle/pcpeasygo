@@ -103,6 +103,17 @@ func (m *MockPMAPI) PmExtractValue(value_format int, pm_type int, pm_value *pmap
 	return pm_atom_value.(pmapi.PmAtomValue), err
 }
 
+func (m *MockPMAPI) PmGetInDom(indom pmapi.PmInDom) (map[int]string, error) {
+	args := m.Called(indom)
+	instances_to_names := args.Get(0)
+	err := args.Error(1)
+	if(instances_to_names == nil) {
+		return nil, err
+	}
+	return instances_to_names.(map[int]string), err
+
+}
+
 func (m *MockPmDescAdapter) toMetricInfo(pm_desc pmapi.PmDesc) metricInfo {
 	args := m.Called(pm_desc)
 	return args.Get(0).(metricInfo)
@@ -198,4 +209,88 @@ func TestAgent_Metrics_returnsAMetricResult(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, expected_metrics, actual_metrics)
+}
+
+func TestAgent_Metrics_returnsAMetricResultForAMetricWithInstances(t *testing.T) {
+	mock_pmapi := &MockPMAPI{}
+	mock_pmdesc_adapter := &MockPmDescAdapter{}
+	mock_pmvalue_adapter := &MockPmValueAdapter{}
+	agent := &agent{pmapi:mock_pmapi, pmDescAdapter:mock_pmdesc_adapter, pmValueAdapter:mock_pmvalue_adapter}
+
+	indom := pmapi.PmInDom(555)
+	instance_1 := 111
+	instance_2 := 222
+	instance_names := map[int]string{instance_1:"inst1", instance_2:"inst2"}
+	pm_value_1 := &pmapi.PmValue{Inst:instance_1}
+	pm_value_2 := &pmapi.PmValue{Inst:instance_2}
+	pmid := pmapi.PmID(123)
+	pm_result := &pmapi.PmResult{
+		NumPmID:1,
+		Timestamp:time.Unix(123,456),
+		VSet:[]*pmapi.PmValueSet{{
+			NumVal:2,
+			PmID:pmid,
+			ValFmt:pmapi.PmValDptr,
+			VList:[]*pmapi.PmValue{pm_value_1, pm_value_2},
+		}},
+	}
+	pm_desc := pmapi.PmDesc{Type:pmapi.PmType64, InDom:indom, PmID:pmid}
+	metric_info := metricInfo{_type:reflect.Int64, semantics:"counter", units:metricUnits{_range:"seconds", domain:"megabytes"}}
+
+	mock_pmapi.On("PmLookupName", []string{"my.metric"}).Return([]pmapi.PmID{123}, nil)
+	mock_pmapi.On("PmFetch", []pmapi.PmID{123}).Return(pm_result, nil)
+	mock_pmapi.On("PmLookupDesc", pmid).Return(pm_desc, nil)
+	mock_pmapi.On("PmGetInDom", indom).Return(instance_names, nil)
+	mock_pmdesc_adapter.On("toMetricInfo", pm_desc).Return(metric_info)
+	mock_pmvalue_adapter.On("toUntypedMetric", pmapi.PmValDptr, pmapi.PmType64, pm_value_1).Return(int64(881), nil)
+	mock_pmvalue_adapter.On("toUntypedMetric", pmapi.PmValDptr, pmapi.PmType64, pm_value_2).Return(int64(882), nil)
+
+	actual_metrics, err := agent.Metrics("my.metric")
+
+	expected_metrics := []Metric{{
+		Name: "my.metric",
+		Semantics: "counter",
+		Type: reflect.Int64,
+		Units: Units{Domain:"megabytes", Range: "seconds"},
+		Values: []MetricValue{
+			{Instance: "inst1", Value: int64(881)},
+			{Instance: "inst2", Value: int64(882)},
+		},
+	}}
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected_metrics, actual_metrics)
+}
+
+func TestAgent_Metrics_returnsAErrorIfTheMetricContainsAnErrorEncodedInNumVal(t *testing.T) {
+	mock_pmapi := &MockPMAPI{}
+	mock_pmdesc_adapter := &MockPmDescAdapter{}
+	mock_pmvalue_adapter := &MockPmValueAdapter{}
+	agent := &agent{pmapi:mock_pmapi, pmDescAdapter:mock_pmdesc_adapter, pmValueAdapter:mock_pmvalue_adapter}
+
+	metric_name := "my.metric"
+	pmid := pmapi.PmID(123)
+	pmids := []pmapi.PmID{pmid}
+	error_encoded_in_numval := -12345
+	pm_result := &pmapi.PmResult{
+		NumPmID:1,
+		VSet:[]*pmapi.PmValueSet{{
+			NumVal:error_encoded_in_numval,
+			PmID:pmid,
+			ValFmt:pmapi.PmValDptr,
+			VList:[]*pmapi.PmValue{},
+		}},
+	}
+	pm_desc := pmapi.PmDesc{}
+	metric_info := metricInfo{}
+
+	mock_pmapi.On("PmLookupName", []string{metric_name}).Return(pmids, nil)
+	mock_pmapi.On("PmFetch", pmids).Return(pm_result, nil)
+	mock_pmapi.On("PmLookupDesc", pmid).Return(pm_desc, nil)
+	mock_pmdesc_adapter.On("toMetricInfo", pm_desc).Return(metric_info)
+
+	actual_metrics, err := agent.Metrics(metric_name)
+
+	assert.Nil(t, actual_metrics)
+	assert.EqualError(t, err, "metric \"123\" contains no values or error \"-12345\"")
 }
