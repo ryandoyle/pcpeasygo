@@ -21,39 +21,14 @@
 package main
 
 import (
+	"github.com/ryandoyle/pcpeasygo"
 	"fmt"
-	"github.com/ryandoyle/pcpeasygo/pmapi"
-	"runtime"
-	"time"
 )
 
 func main() {
-	doRun()
-	time.Sleep(time.Second)
-	runtime.GC()
-	time.Sleep(time.Second)
-	runtime.GC()
-}
+	a, _ := pcpeasy.NewAgent("localhost")
 
-func doRun() {
-	context, err := pmapi.PmNewContext(pmapi.PmContextHost, "localhost")
-	if err != nil {
-		panic(err)
-	}
-	host, _ := context.PmGetContextHostname()
-	metric, _ := context.PmLookupName("sample.colour")
-	desc, _ := context.PmLookupDesc(metric[0])
-	indoms, _ := context.PmGetInDom(desc.InDom)
-	result, _ := context.PmFetch(metric[0])
+	metrics, _ := a.Metrics("sample.wrap.ulong")
 
-	instances_and_values := make(map[string]int32)
-
-	vset := result.VSet[0]
-	for _, pm_value := range vset.VList {
-		val, _ := pmapi.PmExtractValue(vset.ValFmt, desc.Type, pm_value)
-		instances_and_values[indoms[pm_value.Inst]] = val.Int32
-	}
-
-	fmt.Printf("context id is %v\nhostname is %v\nmetric is %v\npmdesc is %v\nindoms: %v\nvalues: %v\n",
-		context.GetContextId(), host, metric, desc, indoms, instances_and_values)
+	fmt.Printf("metrics: %+v\n", metrics)
 }

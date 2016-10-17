@@ -18,42 +18,42 @@
 //OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //SOFTWARE.
 
-package main
+package pcpeasy
 
 import (
-	"fmt"
 	"github.com/ryandoyle/pcpeasygo/pmapi"
-	"runtime"
-	"time"
 )
 
-func main() {
-	doRun()
-	time.Sleep(time.Second)
-	runtime.GC()
-	time.Sleep(time.Second)
-	runtime.GC()
+type pmValueAdapter interface {
+	toUntypedMetric(value_format int, metric_type int, pm_value *pmapi.PmValue) (interface{}, error)
 }
 
-func doRun() {
-	context, err := pmapi.PmNewContext(pmapi.PmContextHost, "localhost")
-	if err != nil {
-		panic(err)
-	}
-	host, _ := context.PmGetContextHostname()
-	metric, _ := context.PmLookupName("sample.colour")
-	desc, _ := context.PmLookupDesc(metric[0])
-	indoms, _ := context.PmGetInDom(desc.InDom)
-	result, _ := context.PmFetch(metric[0])
+type pmValueAdapterImpl struct{
+	pmapi pmapi.PMAPI
+}
 
-	instances_and_values := make(map[string]int32)
-
-	vset := result.VSet[0]
-	for _, pm_value := range vset.VList {
-		val, _ := pmapi.PmExtractValue(vset.ValFmt, desc.Type, pm_value)
-		instances_and_values[indoms[pm_value.Inst]] = val.Int32
+func (a pmValueAdapterImpl) toUntypedMetric(value_format int, metric_type int, pm_value *pmapi.PmValue) (interface{}, error) {
+	pm_atom_value, err := a.pmapi.PmExtractValue(value_format, metric_type, pm_value)
+	if(err != nil) {
+		return nil, err
 	}
 
-	fmt.Printf("context id is %v\nhostname is %v\nmetric is %v\npmdesc is %v\nindoms: %v\nvalues: %v\n",
-		context.GetContextId(), host, metric, desc, indoms, instances_and_values)
+	switch metric_type {
+	case pmapi.PmType32:
+		return pm_atom_value.Int32, nil
+	case pmapi.PmTypeU32:
+		return pm_atom_value.UInt32, nil
+	case pmapi.PmType64:
+		return pm_atom_value.Int64, nil
+	case pmapi.PmTypeU64:
+		return pm_atom_value.UInt64, nil
+	case pmapi.PmTypeFloat:
+		return pm_atom_value.Float, nil
+	case pmapi.PmTypeDouble:
+		return pm_atom_value.Double, nil
+	case pmapi.PmTypeString:
+		return pm_atom_value.String, nil
+	}
+	/* Shouldn't ever get here as PmExtractValue would exit earlier */
+	return nil, nil
 }

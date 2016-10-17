@@ -113,6 +113,13 @@ import (
 	"time"
 )
 
+type PMAPI interface {
+	PmLookupName(names ...string) ([]PmID, error)
+	PmFetch(pmids ...PmID) (*PmResult, error)
+	PmLookupDesc(pmid PmID) (PmDesc, error)
+	PmExtractValue(value_format int, pm_type int, pm_value *PmValue) (PmAtomValue, error)
+}
+
 type PmapiContext struct {
 	context int
 }
@@ -415,6 +422,10 @@ func newPmValue(index int, c_vset *C.pmValueSet) *PmValue {
 		C.freePmValue(pm_value.cPmValue, pm_value.valfmt)
 	})
 	return pm_value
+}
+
+func (c *PmapiContext) PmExtractValue(value_format int, pm_type int, pm_value *PmValue) (PmAtomValue, error) {
+	return PmExtractValue(value_format, pm_type, pm_value)
 }
 
 func PmExtractValue(value_format int, pm_type int, pm_value *PmValue) (PmAtomValue, error) {
