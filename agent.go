@@ -108,7 +108,7 @@ func (a *agent) buildMetricFromPmValueSet(vset *pmapi.PmValueSet, pmid_names map
 }
 
 func (a *agent) metricValueForNoIndom(vset *pmapi.PmValueSet, metric_info metricInfo, metric_name string, metric_type int) (Metric, error) {
-	value, err := a.pmValueAdapter.toUntypedMetric(vset.ValFmt, metric_type, vset.VList[0])
+	metric_values, err := a.buildMetricValues(vset, metric_type)
 	if(err != nil) {
 		return Metric{}, err
 	}
@@ -117,9 +117,18 @@ func (a *agent) metricValueForNoIndom(vset *pmapi.PmValueSet, metric_info metric
 		Name:metric_name,
 		Semantics:metric_info.semantics,
 		Units:Units{Domain:metric_info.units.domain, Range:metric_info.units._range},
-		Values:[]MetricValue{{
-			Instance:"",
-			Value:value,
-		}},
+		Values:metric_values,
 	}, nil
+}
+
+func (a *agent) buildMetricValues(vset *pmapi.PmValueSet, metric_type int) ([]MetricValue, error) {
+	value, err := a.pmValueAdapter.toUntypedMetric(vset.ValFmt, metric_type, vset.VList[0])
+	if(err != nil) {
+		return nil, err
+	}
+
+	return []MetricValue{{
+		Instance:"",
+		Value:value,
+	}}, nil
 }
