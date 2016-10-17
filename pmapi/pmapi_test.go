@@ -35,7 +35,7 @@ func TestPmapiContext_PmGetContextHostname(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
 	hostname, _ := c.PmGetContextHostname()
 
-	assert.Equal(t, "ryandesktop", hostname)
+	assert.NotEmpty(t, hostname)
 }
 
 func TestPmapiContext_PmLookupNameForASingleName(t *testing.T) {
