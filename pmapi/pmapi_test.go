@@ -54,9 +54,10 @@ func TestPmapiContext_PmLookupNameReturnsAnErrorForUnknownNames(t *testing.T) {
 
 func TestPmapiContext_PmLookupNameForMultipleNames(t *testing.T) {
 	c, _ := PmNewContext(PmContextHost, "localhost")
-	pmids, _ := c.PmLookupName("sample.long.one", "sample.ulong.hundred",)
+	pmids, _ := c.PmLookupName("sample.double.million", "sample.milliseconds",)
 
-	assert.Equal(t, PmID(121634911), pmids[1])
+	assert.Equal(t, sampleDoubleMillionPmID, pmids[0])
+	assert.Equal(t, sampleMillisecondsPmID, pmids[1])
 }
 
 func TestPmapiContext_PmLookupDesc_HasTheCorrectPmID(t *testing.T) {
@@ -147,6 +148,13 @@ func TestPmapiContext_PmFetch_returnsAVSet_withVlist_withAPmValue_withAnInst(t *
 	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID)
 
 	assert.Equal(t, -1, pm_result.VSet[0].VList[0].Inst)
+}
+
+func TestPmapiContext_PmFetch_supportsMultiplePMIDs(t *testing.T) {
+	pm_result, _ := localContext().PmFetch(sampleDoubleMillionPmID, sampleStringHulloPmID)
+
+	assert.Len(t, pm_result.VSet[0].VList, 1)
+	assert.Len(t, pm_result.VSet[1].VList, 1)
 }
 
 func TestPmExtractValue_forADoubleValue(t *testing.T) {

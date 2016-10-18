@@ -172,8 +172,8 @@ type PmAtomValue struct {
 }
 
 type PmContextType int
-type PmID uint
-type PmInDom uint
+type PmID uint32
+type PmInDom uint32
 
 
 const (
