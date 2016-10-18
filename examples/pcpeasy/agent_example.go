@@ -28,9 +28,12 @@ import (
 func main() {
 	a, _ := pcpeasy.NewAgent("localhost")
 
-	metrics_with_no_instances, _ := a.Metrics("sample.wrap.ulong")
-	metrics_with_instances, _ := a.Metrics("network.interface.total.bytes")
+	disk_all_read_metric, _   := a.Metric("disk.all.read")
+	disk_partition_metrics, err := a.Metrics("disk.partitions.read", "disk.partitions.write")
+	if(err != nil) {
+		panic(err)
+	}
 
-	fmt.Printf("metrics(no instance): %+v\n", metrics_with_no_instances)
-	fmt.Printf("metrics(with instance): %+v\n", metrics_with_instances)
+	fmt.Printf("metric(no instance): %+v\n", disk_all_read_metric)
+	fmt.Printf("metrics(with instance): %+v\n", disk_partition_metrics)
 }

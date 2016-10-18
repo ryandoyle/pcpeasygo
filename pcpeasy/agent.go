@@ -59,6 +59,13 @@ func NewAgent(host string) (*agent, error) {
 	return &agent{pmapi:pmapi, pmDescAdapter:pmDescAdapterImpl{}, pmValueAdapter:pmValueAdapterImpl{pmapi:pmapi}}, nil
 }
 
+func (a *agent) Metric(metric_name string) (Metric, error) {
+	metrics, err := a.Metrics(metric_name); if err != nil {
+		return Metric{}, err
+	}
+	return metrics[0], nil
+}
+
 func (a *agent) Metrics(metric_strings ...string) ([]Metric, error) {
 	pmids, err := a.pmapi.PmLookupName(metric_strings...)
 	if(err != nil) {
