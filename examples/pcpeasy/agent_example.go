@@ -21,8 +21,8 @@
 package main
 
 import (
-	"github.com/ryandoyle/pcpeasygo"
 	"fmt"
+	"github.com/ryandoyle/pcpeasygo/pcpeasy"
 )
 
 func main() {
